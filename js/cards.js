@@ -183,15 +183,15 @@ const SPREADS = {
   one: {
     name: "원 카드",
     desc: "당일 운세나 명확한 조언 하나",
-    positions: [{ name: "핵심 메시지", desc: "질문에 대한 가장 중요한 답과 방향" }],
+    positions: [{ name: "핵심 메시지", desc: "질문에 대한 가장 중요한 답과 방향", key: true }],
   },
   three: {
     name: "쓰리 카드 · 시간의 흐름",
     desc: "과거 · 현재 · 미래",
     positions: [
       { name: "과거", desc: "현재 상황에 영향을 준 과거의 흐름" },
-      { name: "현재", desc: "지금 질문자가 처한 상황과 에너지" },
-      { name: "미래", desc: "지금의 태도가 이어질 때 다가올 가능성" },
+      { name: "현재", desc: "지금 질문자가 처한 상황과 에너지", key: true },
+      { name: "미래", desc: "지금의 태도가 이어질 때 다가올 가능성", key: true },
     ],
   },
   solution: {
@@ -199,8 +199,8 @@ const SPREADS = {
     desc: "원인 · 현재 · 해결책",
     positions: [
       { name: "원인", desc: "문제를 만든 근본 원인" },
-      { name: "현재", desc: "지금 드러나 있는 상황" },
-      { name: "해결책", desc: "질문자가 취할 수 있는 실마리와 행동" },
+      { name: "현재", desc: "지금 드러나 있는 상황", key: true },
+      { name: "해결책", desc: "질문자가 취할 수 있는 실마리와 행동", key: true },
     ],
   },
   celtic: {
@@ -208,8 +208,8 @@ const SPREADS = {
     desc: "복합적인 문제와 심리 분석 (10장)",
     layout: "celtic",
     positions: [
-      { name: "현재 상황", desc: "질문의 핵심이 되는 현재 상황" },
-      { name: "장애물", desc: "현재를 가로막거나 교차하는 힘" },
+      { name: "현재 상황", desc: "질문의 핵심이 되는 현재 상황", key: true },
+      { name: "장애물", desc: "현재를 가로막거나 교차하는 힘", key: true },
       { name: "의식 · 목표", desc: "질문자가 의식적으로 바라는 것" },
       { name: "무의식 · 근원", desc: "상황 밑바닥에 깔린 무의식적 원인" },
       { name: "지나간 과거", desc: "막 지나가고 있는 영향" },
@@ -217,7 +217,7 @@ const SPREADS = {
       { name: "질문자의 태도", desc: "이 상황을 대하는 질문자 자신의 모습" },
       { name: "주변 환경", desc: "주변 사람과 외부 환경의 영향" },
       { name: "희망과 두려움", desc: "질문자가 품은 기대와 불안" },
-      { name: "최종 흐름", desc: "조언을 실천했을 때 향하게 될 결과" },
+      { name: "최종 흐름", desc: "조언을 실천했을 때 향하게 될 결과", key: true },
     ],
   },
 };

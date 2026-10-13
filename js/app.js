@@ -99,7 +99,7 @@ function resetAll() {
   state.abort?.abort();
   Object.assign(state, {
     reframed: false, embedding: null, intake: null, deck: [], riffles: 0, washes: 0,
-    picked: [], flipped: new Set(), chat: [], abort: null,
+    picked: [], flipped: new Set(), chat: [], abort: null, clarifierUsed: false, clarifier: null,
   });
   showScreen("screen-question");
 }
@@ -598,6 +598,9 @@ $("#revealBtn").addEventListener("click", () => {
   $("#followups").innerHTML = "";
   $("#chatArea").hidden = true;
   $("#closing").hidden = true;
+  $("#clarityBox").hidden = true;
+  $("#clarityBox").innerHTML = "";
+  state.clarifierUsed = false;
   renderTable();
   showScreen("screen-reading");
 });
@@ -694,8 +697,6 @@ async function onAllFlipped() {
 
 async function startReading() {
   const drawn = drawnCards();
-  const prompt = buildReadingPrompt({ question: state.question, category: state.category, spread: spread(), drawn });
-  state.chat = [{ role: "user", parts: [{ text: prompt }] }];
   const body = $("#readingBody");
   $("#chatArea").hidden = true;
 
@@ -710,13 +711,21 @@ async function startReading() {
 
   state.abort = new AbortController();
   try {
+    const kb = await loadKnowledge();
+    const prompt = buildReadingPrompt({
+      question: state.question, category: state.category,
+      spread: spread(), spreadKey: state.spreadKey, drawn, kb,
+    });
+    state.chat = [{ role: "user", parts: [{ text: prompt }] }];
     const text = await generate({ system: READER_SYSTEM, contents: state.chat, signal: state.abort.signal });
     await sleep(Math.max(0, 3800 - (performance.now() - startedAt)));
     stopOracle();
-    const { body: reading, suggestions } = splitSuggestions(text);
+    const { body: withoutClarity, clarity } = parseClarity(text, drawn.length);
+    const { body: reading, suggestions } = splitSuggestions(withoutClarity);
     revealContent(body, renderReading(reading));
     state.chat.push({ role: "model", parts: [{ text }] });
     renderSuggestChips(suggestions);
+    renderClarity(clarity);
     $("#chatArea").hidden = false;
     saveReading(reading, drawn);
   } catch (e) {
@@ -849,7 +858,7 @@ function askFollowup(q) {
       const text = await generate({ system: READER_SYSTEM, contents: [...state.chat, userTurn], signal: state.abort.signal });
       await sleep(Math.max(0, 2200 - (performance.now() - startedAt)));
       stopOracle();
-      const { body, suggestions } = splitSuggestions(text);
+      const { body, suggestions } = splitSuggestions(parseClarity(text, 0).body);
       revealContent(answer, markdown(body.replace(/\[\[CARD:\d+\]\]/g, "")));
       state.chat.push(userTurn, { role: "model", parts: [{ text }] });
       renderSuggestChips(suggestions);
@@ -862,6 +871,120 @@ function askFollowup(q) {
   };
   ask();
 }
+
+/* 명확성 판정 — 미정이면 그 자체를 안내하고, 정보가 빈 자리가 있을 때만 보조 카드를 허용한다 */
+
+function renderClarity(clarity) {
+  const box = $("#clarityBox");
+  box.innerHTML = "";
+  box.className = "clarity";
+  if (clarity.type === "undecided") {
+    box.classList.add("undecided");
+    box.innerHTML = `<p><span class="clarity-icon" aria-hidden="true">☁</span>
+      이 배열은 결론보다 <b>아직 정해지지 않은 흐름</b>을 보여주고 있어요.
+      애매함 자체가 지금의 메시지이고, 당신의 선택이 방향을 정하게 돼요.</p>`;
+    box.hidden = false;
+  } else if (clarity.type === "clarify" && !state.clarifierUsed) {
+    const pos = spread().positions[clarity.pos];
+    box.classList.add("clarify");
+    box.innerHTML = `
+      <p><span class="clarity-icon" aria-hidden="true">✦</span>
+        <b>${clarity.pos + 1}번 “${pos.name}”</b> 자리가 아직 선명하지 않아요.</p>
+      ${clarity.reason ? `<p class="clarity-reason"></p>` : ""}
+      <p class="clarity-sub">남은 카드 중 한 장을 더 골라 이 자리를 비춰볼 수 있어요. 보조 카드는 한 번만 뽑을 수 있어요.</p>
+      <div class="actions"><button class="btn primary" id="clarifierBtn">보조 카드 한 장 고르기</button></div>`;
+    if (clarity.reason) box.querySelector(".clarity-reason").textContent = clarity.reason;
+    box.querySelector("#clarifierBtn").onclick = () => showClarifierStrip(clarity.pos);
+    box.hidden = false;
+  } else {
+    box.hidden = true;
+  }
+}
+
+function showClarifierStrip(posIndex) {
+  const box = $("#clarityBox");
+  const pos = spread().positions[posIndex];
+  const remaining = state.deck.map((_, i) => i).filter((i) => !state.picked.includes(i));
+  box.innerHTML = `
+    <p>마음을 가라앉히고, <b>“${pos.name}”</b>을(를) 비춰줄 카드 한 장을 골라주세요.</p>
+    <div class="clarify-strip" role="list"></div>`;
+  const strip = box.querySelector(".clarify-strip");
+  remaining.forEach((deckIndex, k) => {
+    const c = cardBack("strip-card");
+    c.style.zIndex = k;
+    c.tabIndex = 0;
+    c.setAttribute("role", "button");
+    c.setAttribute("aria-label", `남은 카드 ${k + 1}`);
+    const choose = () => {
+      if (state.clarifierUsed) return;
+      state.clarifierUsed = true;
+      revealClarifier(deckIndex, posIndex);
+    };
+    c.addEventListener("click", choose);
+    c.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(); } });
+    strip.append(c);
+  });
+  $("#chatArea").hidden = true;
+  box.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function revealClarifier(deckIndex, posIndex) {
+  const d = state.deck[deckIndex];
+  const pos = spread().positions[posIndex];
+  state.clarifier = { d, posIndex };
+  const box = $("#clarityBox");
+  box.innerHTML = `
+    <div class="clarifier-card">
+      <span class="pos-name">보조 카드 · ${pos.name} 보충</span>
+      <span class="flip-card" aria-hidden="true">
+        <span class="flip-inner">
+          <span class="face back"></span>
+          <span class="face front"><img src="${d.card.img}" alt="${d.card.ko}" class="${d.reversed ? "reversed" : ""}" /></span>
+        </span>
+      </span>
+      <span class="card-name"><b>${d.card.ko}</b><small>${d.card.en} · ${directionLabel(d.reversed)}</small></span>
+    </div>`;
+  box.querySelector(".face.back").appendChild(cardBack());
+  await sleep(120);
+  box.querySelector(".clarifier-card").classList.add("flipped");
+  await sleep(1000);
+
+  const qa = el("div", "qa clarifier-qa");
+  const answer = el("div", "a");
+  qa.append(answer);
+  $("#followups").appendChild(qa);
+  qa.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const ask = async () => {
+    const stopOracle = showOracle(answer, [`보조 카드가 “${pos.name}” 자리를 비추는 중이에요`, "흐름을 다시 엮고 있어요"], true);
+    const startedAt = performance.now();
+    state.abort = new AbortController();
+    try {
+      const kb = await loadKnowledge();
+      const userTurn = { role: "user", parts: [{ text: buildClarifierPrompt({ d, posIndex, spread: spread(), category: state.category, kb }) }] };
+      const text = await generate({ system: READER_SYSTEM, contents: [...state.chat, userTurn], signal: state.abort.signal });
+      await sleep(Math.max(0, 2600 - (performance.now() - startedAt)));
+      stopOracle();
+      const { body, suggestions } = splitSuggestions(parseClarity(text, 0).body);
+      revealContent(answer, `<section class="card-section">
+          <img src="${d.card.img}" alt="${d.card.ko}" class="${d.reversed ? "reversed" : ""}" data-clarifier="1" />
+          <div>${markdown(body.replace(/\[\[CARD:\d+\]\]/g, ""))}</div>
+        </section>`);
+      state.chat.push(userTurn, { role: "model", parts: [{ text }] });
+      renderSuggestChips(suggestions);
+      $("#chatArea").hidden = false;
+    } catch (err) {
+      stopOracle();
+      if (err.name === "AbortError") return;
+      showError(answer, err.message, ask);
+    }
+  };
+  ask();
+}
+
+$("#followups").addEventListener("click", (e) => {
+  if (e.target.closest("img[data-clarifier]") && state.clarifier) openZoom(state.clarifier.d);
+});
 
 /* ---------- 6. 조언 도출 및 마무리 ---------- */
 
@@ -990,3 +1113,4 @@ $("#restartBtn").addEventListener("click", () => {
 });
 
 setStep(1);
+loadKnowledge(); // 지식 베이스 미리 불러오기
