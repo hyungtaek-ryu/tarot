@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>달빛 타로</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Gowun+Batang:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="stars" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <button class="brand" id="homeBtn" title="처음으로">☾ 달빛 타로</button>
+    <button class="icon-btn" id="settingsBtn" title="설정">⚙ 설정</button>
+  </header>
+
+  <!-- 6단계 진행 표시 -->
+  <ol class="stepper" id="stepper" aria-label="진행 단계">
+    <li data-step="1"><span>1</span>질문</li>
+    <li data-step="2"><span>2</span>셔플</li>
+    <li data-step="3"><span>3</span>컷</li>
+    <li data-step="4"><span>4</span>배치</li>
+    <li data-step="5"><span>5</span>리딩</li>
+    <li data-step="6"><span>6</span>마무리</li>
+  </ol>
+
+  <main>
+    <!-- 1-a. 질문 입력 -->
+    <section class="screen active" id="screen-question" data-step="1">
+      <h1 class="title">무엇이 궁금한가요?</h1>
+      <p class="subtitle">마음을 가라앉히고, 알고 싶은 것을 한 가지만 떠올려 보세요.</p>
+
+      <form id="questionForm" class="question-form">
+        <textarea id="questionInput" rows="3" maxlength="300"
+          placeholder="예) 지금 준비 중인 이직이 앞으로 3개월 동안 어떻게 흘러갈까요?" required></textarea>
+
+        <details class="tips">
+          <summary>좋은 질문을 만드는 법</summary>
+          <ul>
+            <li><b>기간 · 대상 · 맥락</b>을 담아주세요. 모호한 질문은 해석도 모호해져요.</li>
+            <li>“될까요, 안 될까요?” 같은 <b>예/아니오</b>보다 <b>흐름이나 조언</b>을 묻는 열린 질문이 좋아요.</li>
+            <li>생년월일이나 성별 같은 개인정보는 필요 없어요. 질문이 얼마나 명확한지가 가장 중요해요.</li>
+          </ul>
+          <p class="tips-example">
+            <span class="bad">✕ 연애운 어때요?</span>
+            <span class="good">○ 지금 관심 있는 사람과의 관계가 앞으로 3개월간 어떻게 흘러갈까요?</span>
+          </p>
+        </details>
+
+        <button type="submit" class="btn primary">질문 살펴보기</button>
+      </form>
+    </section>
+
+    <!-- 1-b. 의도 파악 & 배열법 결정 -->
+    <section class="screen" id="screen-intake" data-step="1">
+      <p class="question-echo" id="intakeEcho"></p>
+      <div class="intake-card" id="intakeCard"></div>
+
+      <div id="intakeChoose" hidden>
+        <h2 class="section-title">배열법</h2>
+        <div class="spread-options" id="spreadOptions" role="radiogroup" aria-label="배열법 선택"></div>
+        <label class="toggle">
+          <input type="checkbox" id="reversedToggle" checked />
+          <span>역방향 카드 포함</span>
+        </label>
+        <div class="actions">
+          <button class="btn" id="editQuestionBtn">질문 고치기</button>
+          <button class="btn primary" id="toShuffleBtn">카드 섞으러 가기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 셔플 -->
+    <section class="screen" id="screen-shuffle" data-step="2">
+      <h2 class="title small">카드를 섞어주세요</h2>
+      <p class="subtitle">질문을 마음속으로 되새기며, 충분하다고 느낄 때까지 섞으세요.</p>
+      <p class="question-echo" id="questionEcho1"></p>
+
+      <div class="deck-area" id="deckArea">
+        <div class="deck" id="deck"></div>
+      </div>
+      <p class="shuffle-count" id="shuffleCount">아직 섞지 않았어요</p>
+
+      <div class="actions">
+        <button class="btn" id="riffleBtn" title="플레잉 카드처럼 반으로 나눠 엇갈려 섞어요">🂠 리플 셔플</button>
+        <button class="btn" id="washBtn" title="카드를 테이블에 펼쳐 원을 그리며 섞어요. 카드 방향도 섞여요">🌀 워싱 셔플</button>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="toCutBtn" disabled>덱 정돈하고 컷하기</button>
+      </div>
+    </section>
+
+    <!-- 3. 덱 정돈 및 컷 -->
+    <section class="screen" id="screen-cut" data-step="3">
+      <h2 class="title small">덱을 세 묶음으로 나눴어요</h2>
+      <p class="subtitle" id="cutGuide">다시 하나로 합칠 순서대로 묶음을 눌러주세요. 처음 누른 묶음이 맨 위에 올라가요.</p>
+      <div class="cut-area" id="cutArea"></div>
+      <div class="actions">
+        <button class="btn" id="cutResetBtn" hidden>다시 고르기</button>
+        <button class="btn primary" id="toPickBtn" hidden>카드 펼치기</button>
+      </div>
+    </section>
+
+    <!-- 4. 카드 뽑기 및 배치 -->
+    <section class="screen" id="screen-pick" data-step="4">
+      <h2 class="title small">끌리는 카드를 골라주세요</h2>
+      <p class="subtitle" id="pickGuide"></p>
+      <div class="fan" id="fan"></div>
+      <div class="slots" id="pickSlots"></div>
+      <div class="actions">
+        <button class="btn primary" id="revealBtn" disabled>뒷면 그대로 배치하기</button>
+      </div>
+    </section>
+
+    <!-- 5. 카드 오픈 및 리딩 / 6. 마무리 -->
+    <section class="screen" id="screen-reading" data-step="5">
+      <p class="question-echo" id="questionEcho2"></p>
+      <p class="subtitle" id="flipGuide">배치한 순서대로 카드를 한 장씩 뒤집어 보세요.</p>
+
+      <div class="table" id="table"></div>
+
+      <div class="actions">
+        <button class="btn" id="flipAllBtn">순서대로 모두 뒤집기</button>
+      </div>
+
+      <article class="reading" id="reading" hidden>
+        <div class="reading-head">
+          <span class="crystal" aria-hidden="true">🔮</span>
+          <h2>타로 리더의 해석</h2>
+        </div>
+        <div class="reading-body" id="readingBody"></div>
+
+        <div class="followups" id="followups"></div>
+
+        <div id="chatArea" hidden>
+          <p class="chat-hint">이 카드에 대해 더 궁금한 점이 있나요?</p>
+          <div class="chips" id="suggestChips"></div>
+          <form class="followup-form" id="followupForm">
+            <input id="followupInput" type="text" maxlength="200"
+              placeholder="직접 입력하기" autocomplete="off" />
+            <button class="btn primary" type="submit">질문</button>
+          </form>
+          <div class="actions">
+            <button class="btn primary" id="closeReadingBtn">리딩 마무리하기</button>
+          </div>
+        </div>
+
+        <div class="closing" id="closing" hidden>
+          <p class="closing-title">감사의 마음으로 카드를 정돈했어요 🙏</p>
+          <p>타로는 정해진 운명이 아니라 <b>지금의 상태가 이어질 때 가장 가능성이 높은 흐름</b>을 보여줘요.
+            같은 질문은 <b>1~3개월 뒤</b>, 또는 상황이나 마음에 <b>실제 변화</b>가 생겼을 때 다시 물어봐 주세요.</p>
+          <ul class="revisit">
+            <li>결과 통보, 연락 재개처럼 새로운 분기점이 생겼을 때</li>
+            <li>조언을 실천했거나 마음가짐을 바꿨을 때</li>
+            <li>몰랐던 핵심 정보나 변수가 새로 생겼을 때</li>
+          </ul>
+          <div class="actions">
+            <button class="btn primary" id="restartBtn">새로운 질문하기</button>
+          </div>
+        </div>
+
+        <p class="disclaimer">타로 리딩은 스스로를 돌아보기 위한 참고용이에요. 건강·법률·재정 문제는 전문가와 상의하세요.</p>
+      </article>
+    </section>
+  </main>
+
+  <!-- 위기 상황 안내 (AI 응답과 관계없이 항상 같은 내용) -->
+  <template id="crisisTemplate">
+    <div class="crisis">
+      <p><b>혼자 견디지 않아도 괜찮아요.</b> 지금 이야기를 들어줄 수 있는 곳이 있어요.</p>
+      <ul>
+        <li>자살예방 상담전화 <a href="tel:109">109</a> (24시간)</li>
+        <li>정신건강 위기상담 <a href="tel:1577-0199">1577-0199</a> (24시간)</li>
+        <li>긴급한 위험이 있다면 <a href="tel:119">119</a> 또는 <a href="tel:112">112</a></li>
+      </ul>
+    </div>
+  </template>
+
+  <!-- 설정 모달 -->
+  <dialog id="settingsDialog" class="dialog">
+    <form method="dialog" id="settingsForm">
+      <h2>설정</h2>
+      <p class="field-inline">
+        <span>리딩 기록 <b id="historyCount">0</b>건 · 반복 질문 감지에 쓰여요</span>
+        <button type="button" class="btn small" id="clearHistoryBtn">기록 지우기</button>
+      </p>
+      <p class="settings-note">리딩 기록은 이 브라우저에만 저장돼요.</p>
+      <div class="actions">
+        <button class="btn primary">닫기</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 카드 확대 모달 -->
+  <dialog id="zoomDialog" class="dialog zoom">
+    <img id="zoomImg" alt="" />
+    <div class="zoom-info" id="zoomInfo"></div>
+    <form method="dialog"><button class="btn">닫기</button></form>
+  </dialog>
+
+  <script src="js/cardback.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/gemini.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
